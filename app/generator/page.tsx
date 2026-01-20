@@ -7,6 +7,8 @@ type GeneratorPageProps = {
   searchParams: Promise<{ id?: string }>;
 };
 
+export const dynamic = "force-dynamic";
+
 function mapToFormValues(input: unknown): BlockGeneratorFormValues | undefined {
   const parsed = blockGeneratorSchema.safeParse(input);
 
@@ -49,7 +51,7 @@ export default async function GeneratorPage(props: GeneratorPageProps) {
   const initialValues = selectedItem ? mapToFormValues(selectedItem.input) : undefined;
 
   return (
-    <div className="flex min-h-[calc(100vh-0px)]">
+    <div className="flex min-h-[calc(100vh-0px)]" suppressHydrationWarning>
       <BlockLibrarySidebar items={items} activeId={id} />
 
       <main className="flex-1 p-6">

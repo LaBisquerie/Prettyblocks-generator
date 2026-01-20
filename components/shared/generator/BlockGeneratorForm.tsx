@@ -19,6 +19,8 @@ import {
 import { useBlockGenerator } from "@/hooks/use-block-generator";
 import { useBlockLibrary } from "@/hooks/use-block-library";
 import { FieldArrayEditor } from "./fields/FieldArrayEditor";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 type BlockGeneratorFormProps = {
   initialValues?: BlockGeneratorFormValues;
@@ -27,6 +29,7 @@ type BlockGeneratorFormProps = {
 export function BlockGeneratorForm({ initialValues }: BlockGeneratorFormProps) {
   const { isGenerating, generate } = useBlockGenerator();
   const { isSaving, saveToLibrary } = useBlockLibrary();
+  const router = useRouter();
 
   const emptyValues = useMemo<BlockGeneratorFormValues>(
     () => ({
@@ -99,7 +102,11 @@ export function BlockGeneratorForm({ initialValues }: BlockGeneratorFormProps) {
       repeater: values.hasRepeater ? values.repeater : undefined,
     });
 
-    await saveToLibrary(parsed);
+    const saved = await saveToLibrary(parsed);
+
+    toast.success("Block saved to the library");
+    router.refresh();
+    router.push(`/generator?id=${saved.id}`);
   }
 
   return (

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import { useDeleteLibraryBlock } from "@/hooks/use-delete-library-block";
+import { toast } from "sonner";
 
 type DeleteBlockActionProps = {
   blockId: string;
@@ -34,8 +35,11 @@ export function DeleteBlockAction({ blockId, blockLabel }: DeleteBlockActionProp
   async function handleDelete() {
     await deleteBlock(blockId);
 
+    toast.success("Block deleted");
+
     if (activeId === blockId) {
       router.push("/generator");
+      router.refresh();
       return;
     }
 
@@ -51,7 +55,6 @@ export function DeleteBlockAction({ blockId, blockLabel }: DeleteBlockActionProp
           size="icon"
           className="h-8 w-8 text-muted-foreground hover:text-destructive"
           onClick={(e) => {
-            // ✅ do not trigger the parent Link navigation
             e.preventDefault();
             e.stopPropagation();
           }}
