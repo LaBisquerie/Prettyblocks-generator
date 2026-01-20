@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BlockLibraryNavItem } from "./sidebar/BlockLibraryNavItem";
+import { BlockLibrarySidebarClient } from "./sidebar/BlockLibrarySidebarClient";
 
 type BlockLibrarySidebarItem = {
   id: string;
@@ -30,29 +30,12 @@ export function BlockLibrarySidebar({ items, activeId }: BlockLibrarySidebarProp
           </div>
 
           <p className="mt-2 text-xs text-muted-foreground">
-            Click a block to load its config into the generator.
+            Filter + keyboard navigation: ↑ ↓ Enter
           </p>
         </div>
 
-        <div className="flex-1 overflow-auto p-2">
-          {items.length === 0 ? (
-            <div className="p-3 text-sm text-muted-foreground">
-              No saved blocks yet.
-            </div>
-          ) : (
-            <nav className="space-y-1">
-              {items.map((item) => (
-                <BlockLibraryNavItem
-                  key={item.id}
-                  id={item.id}
-                  nameLabel={item.nameLabel}
-                  code={item.code}
-                  description={item.description}
-                  isActive={item.id === activeId}
-                />
-              ))}
-            </nav>
-          )}
+        <div className="flex-1 overflow-auto">
+          <BlockLibrarySidebarClient items={items} activeId={activeId} />
         </div>
       </div>
     </aside>
