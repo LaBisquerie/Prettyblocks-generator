@@ -1,18 +1,60 @@
 import { BlockGeneratorForm } from "@/components/shared/generator/BlockGeneratorForm";
+import { BlockGeneratorFormValues, blockGeneratorSchema } from "@/lib/prettyblocks/block-generator.schema";
+import { prisma } from "@/lib/db/prisma";
+import { BlockLibrarySidebar } from "@/components/shared/generator/BlockLibrarySidebar";
 
-export default function GeneratorPage() {
+type GeneratorPageProps = {
+  searchParams: Promise<{ id?: string }>;
+};
+
+function mapToFormValues(input: unknown): BlockGeneratorFormValues | undefined {
+  const parsed = blockGeneratorSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return undefined;
+  }
+
+  const value = parsed.data;
+
+  return {
+    blockName: value.blockName,
+    tplFilename: value.tplFilename,
+    code: value.code,
+    nameLabel: value.nameLabel,
+    description: value.description,
+    hasRepeater: value.hasRepeater,
+    fields: value.fields ?? [],
+    repeater: value.repeater,
+  }
+}
+
+export default async function GeneratorPage(props: GeneratorPageProps) {
+  const { id } = await props.searchParams;
+
+  const items = await prisma.blockLibraryItem.findMany({
+    orderBy: { updatedAt: "desc" },
+    select: {
+      id: true,
+      nameLabel: true,
+      code: true,
+      description: true,
+    },
+  });
+
+  const selectedItem = id ? await prisma.blockLibraryItem.findUnique({
+    where: { id },
+    select: { id: true, input: true },
+  }) : null;
+
+  const initialValues = selectedItem ? mapToFormValues(selectedItem.input) : undefined;
+
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-10">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-bold">Prettyblocks Block Generator</h1>
-        <p className="text-muted-foreground">
-          Create a PHP + TPL scaffold and download it as a zip.
-        </p>
-      </div>
+    <div className="flex min-h-[calc(100vh-0px)]">
+      <BlockLibrarySidebar items={items} activeId={id} />
 
-      <div className="mt-8">
-        <BlockGeneratorForm />
-      </div>
-    </main>
+      <main className="flex-1 p-6">
+        <BlockGeneratorForm key={id ?? "new"} initialValues={initialValues} />
+      </main>
+    </div>
   );
 }

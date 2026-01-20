@@ -17,13 +17,18 @@ import {
 } from "@/lib/prettyblocks/block-generator.schema";
 
 import { useBlockGenerator } from "@/hooks/use-block-generator";
+import { useBlockLibrary } from "@/hooks/use-block-library";
 import { FieldArrayEditor } from "./fields/FieldArrayEditor";
 
-export function BlockGeneratorForm() {
-  const { isGenerating, generate } = useBlockGenerator();
+type BlockGeneratorFormProps = {
+  initialValues?: BlockGeneratorFormValues;
+};
 
-  // ✅ no default values (only placeholders)
-  const defaultValues = useMemo<BlockGeneratorFormValues>(
+export function BlockGeneratorForm({ initialValues }: BlockGeneratorFormProps) {
+  const { isGenerating, generate } = useBlockGenerator();
+  const { isSaving, saveToLibrary } = useBlockLibrary();
+
+  const emptyValues = useMemo<BlockGeneratorFormValues>(
     () => ({
       blockName: "",
       tplFilename: "",
@@ -31,15 +36,23 @@ export function BlockGeneratorForm() {
       nameLabel: "",
       description: "",
       hasRepeater: false,
-
-      // ✅ block can have config fields + repeater fields at the same time
       fields: [],
-
-      // ✅ only created when repeater is enabled
       repeater: undefined,
     }),
     []
   );
+
+  const defaultValues = useMemo<BlockGeneratorFormValues>(() => {
+    if (!initialValues) {
+      return emptyValues;
+    }
+
+    return {
+      ...emptyValues,
+      ...initialValues,
+      repeater: initialValues.hasRepeater ? initialValues.repeater : undefined,
+    };
+  }, [emptyValues, initialValues]);
 
   const form = useForm<BlockGeneratorFormValues>({
     resolver: zodResolver(blockGeneratorSchema),
@@ -53,7 +66,6 @@ export function BlockGeneratorForm() {
     form.setValue("hasRepeater", nextValue);
 
     if (nextValue) {
-      // ✅ ensure the repeater object exists so register() works
       const current = form.getValues("repeater");
       if (!current) {
         form.setValue("repeater", {
@@ -65,27 +77,29 @@ export function BlockGeneratorForm() {
       return;
     }
 
-    // ✅ disable repeater => remove it
     form.setValue("repeater", undefined);
   }
 
   async function onSubmit(values: BlockGeneratorFormValues) {
-    // ✅ tab/icon are fixed here (no UI)
     const parsed = blockGeneratorSchema.parse({
       ...values,
       tab: "general",
       icon: "DocumentIcon",
-
-      repeater: values.hasRepeater
-        ? values.repeater ?? {
-            nameLabel: "",
-            nameFrom: "Item",
-            fields: [],
-          }
-        : undefined,
+      repeater: values.hasRepeater ? values.repeater : undefined,
     });
 
     await generate(parsed);
+  }
+
+  async function onSave(values: BlockGeneratorFormValues) {
+    const parsed = blockGeneratorSchema.parse({
+      ...values,
+      tab: "general",
+      icon: "DocumentIcon",
+      repeater: values.hasRepeater ? values.repeater : undefined,
+    });
+
+    await saveToLibrary(parsed);
   }
 
   return (
@@ -113,11 +127,7 @@ export function BlockGeneratorForm() {
 
             <div className="space-y-1">
               <Label htmlFor="code">Prettyblocks code</Label>
-              <Input
-                id="code"
-                {...form.register("code")}
-                placeholder="cpb_herobanner"
-              />
+              <Input id="code" {...form.register("code")} placeholder="cpb_herobanner" />
               {form.formState.errors.code && (
                 <p className="text-sm text-destructive">
                   {form.formState.errors.code.message}
@@ -170,7 +180,6 @@ export function BlockGeneratorForm() {
             )}
           </div>
 
-          {/* ✅ tab + icon locked */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-1">
               <Label>Tab</Label>
@@ -196,7 +205,6 @@ export function BlockGeneratorForm() {
         </CardContent>
       </Card>
 
-      {/* ✅ Always show config fields */}
       <Card>
         <CardHeader>
           <CardTitle>Config fields (config.fields)</CardTitle>
@@ -212,7 +220,6 @@ export function BlockGeneratorForm() {
         </CardContent>
       </Card>
 
-      {/* ✅ If repeater enabled, show repeater fields too */}
       {hasRepeater && (
         <Card>
           <CardHeader>
@@ -250,7 +257,16 @@ export function BlockGeneratorForm() {
         </Card>
       )}
 
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-3">
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={isSaving}
+          onClick={form.handleSubmit(onSave)}
+        >
+          {isSaving ? "Saving..." : "Save to the library"}
+        </Button>
+
         <Button type="submit" disabled={isGenerating}>
           {isGenerating ? "Generating..." : "Generate ZIP"}
         </Button>
