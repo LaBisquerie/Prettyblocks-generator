@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -28,11 +28,17 @@ function buildSearchable(item: SidebarItem): string {
   return `${item.nameLabel} ${item.code} ${item.description}`.toLowerCase();
 }
 
-export function BlockLibrarySidebarClient({ items, activeId, }: BlockLibrarySidebarClientProps) {
+export function BlockLibrarySidebarClient({
+  items,
+  activeId,
+}: BlockLibrarySidebarClientProps) {
   const router = useRouter();
+
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   const [query, setQuery] = useState("");
   const [focusedIndex, setFocusedIndex] = useState(0);
+  const [isListFocusActive, setIsListFocusActive] = useState(false);
 
   const indexedItems = useMemo<MatchableItem[]>(
     () =>
@@ -65,13 +71,34 @@ export function BlockLibrarySidebarClient({ items, activeId, }: BlockLibrarySide
     setFocusedIndex((prev) => Math.min(prev, filtered.length - 1));
   }, [filtered.length]);
 
+  useEffect(() => {
+    function handleMouseDown(event: MouseEvent) {
+      const container = containerRef.current;
+      if (!container) {
+        return;
+      }
+
+      const target = event.target as Node | null;
+      if (target && container.contains(target)) {
+        return;
+      }
+
+      setIsListFocusActive(false);
+    }
+
+    document.addEventListener("mousedown", handleMouseDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handleMouseDown);
+    };
+  }, []);
+
   function navigateTo(item: SidebarItem) {
     if (item.id === activeId) {
       return;
     }
 
     toast.success(`Loaded block — ${item.nameLabel}`);
-
     router.push(`/generator?id=${item.id}`);
   }
 
@@ -82,33 +109,44 @@ export function BlockLibrarySidebarClient({ items, activeId, }: BlockLibrarySide
 
     if (e.key === "ArrowDown") {
       e.preventDefault();
+      setIsListFocusActive(true);
       setFocusedIndex((prev) => Math.min(prev + 1, filtered.length - 1));
       return;
     }
 
     if (e.key === "ArrowUp") {
       e.preventDefault();
+      setIsListFocusActive(true);
       setFocusedIndex((prev) => Math.max(prev - 1, 0));
       return;
     }
 
     if (e.key === "Enter") {
       e.preventDefault();
+      setIsListFocusActive(false);
+
       const item = filtered[focusedIndex];
       if (item) {
         navigateTo(item);
       }
     }
+
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setQuery("");
+      setIsListFocusActive(false);
+    }
   }
 
   return (
-    <div className="flex flex-col gap-2 p-2">
+    <div ref={containerRef} className="flex flex-col gap-2 p-2">
       <Input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="Filter blocks..."
         className="h-9"
+        onFocus={() => setIsListFocusActive(false)}
       />
 
       <div className="px-1 text-xs text-muted-foreground">
@@ -127,8 +165,14 @@ export function BlockLibrarySidebarClient({ items, activeId, }: BlockLibrarySide
               item={item}
               query={query}
               isActive={item.id === activeId}
-              isFocused={index === focusedIndex}
-              onNavigate={() => navigateTo(item)}
+              isFocused={isListFocusActive && index === focusedIndex}
+              onNavigate={() => {
+                setIsListFocusActive(false);
+                navigateTo(item);
+              }}
+              onMouseEnter={() => {
+                setIsListFocusActive(false);
+              }}
             />
           ))
         )}
@@ -143,6 +187,7 @@ type BlockLibraryListItemProps = {
   isActive: boolean;
   isFocused: boolean;
   onNavigate: () => void;
+  onMouseEnter: () => void;
 };
 
 function BlockLibraryListItem({
@@ -151,6 +196,7 @@ function BlockLibraryListItem({
   isActive,
   isFocused,
   onNavigate,
+  onMouseEnter,
 }: BlockLibraryListItemProps) {
   useEffect(() => {
     if (!isFocused) {
@@ -167,6 +213,7 @@ function BlockLibraryListItem({
       role="button"
       tabIndex={0}
       onClick={onNavigate}
+      onMouseEnter={onMouseEnter}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
@@ -177,14 +224,18 @@ function BlockLibraryListItem({
         "w-full cursor-pointer rounded-md border px-3 py-2 text-left text-sm transition outline-none border-primary/10",
         isActive
           ? "border-primary bg-muted"
-          : "hover:border-border hover:bg-muted",
+          : "bhover:border-border hover:bg-muted",
         isFocused ? "border-black!" : "",
       ].join(" ")}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate font-medium">{highlightText(item.nameLabel, query)}</p>
-          <p className="text-xs text-muted-foreground">{highlightText(item.code, query)}</p>
+          <p className="truncate font-medium">
+            {highlightText(item.nameLabel, query)}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {highlightText(item.code, query)}
+          </p>
         </div>
 
         <DeleteBlockAction blockId={item.id} blockLabel={item.nameLabel} />
